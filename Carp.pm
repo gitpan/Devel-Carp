@@ -1,5 +1,5 @@
 package Devel::Carp;
-$VERSION = '0.01';
+$VERSION = '0.02';
 
 # Avoid loading Carp if it wasn't already loaded.
 $INC{'Carp.pm'} = $INC{'Devel/Carp.pm'};
@@ -73,6 +73,8 @@ require Exporter;
 @EXPORT_FAIL = qw(verbose);	# hook to enable verbose mode
 
 local $SIG{__WARN__} = sub {
+    # Carp was probably loaded already so we need to turn off
+    # the "Subroutine %s redefined" warning.
     return if $_[0] =~ /redefined/;
     warn $_[0];
 };
@@ -95,15 +97,15 @@ local $SIG{__WARN__} = sub {
 # This gets appended with the stack trace messages which are generated for
 # each function call on the stack.
 
-my $guard=0;
+my $in_carp=0;
 *longmess = sub {
-    return "<DIED>\n" if $guard;
-    ++$guard;
+    return "DIED\n" if $in_carp;
+    ++$in_carp;
     my $error;
     eval { $error = join '', @_ };
     if ($@) {
 	$@ =~ s/\n$//;
-	$error = $@;
+	$error = "<$@>";
     }
     my $mess = "";
     my $i = 1 + $CarpLevel;
@@ -182,7 +184,7 @@ my $guard=0;
 		  };
 		  if ($@) {
 		      $@ =~ s/\n$//;
-		      $_ = $@;
+		      $_ = "<$@>";
 		  }
 		}
 		# append ('all', 'the', 'arguments') to the $sub string
@@ -200,7 +202,7 @@ my $guard=0;
     # this kludge circumvents die's incorrect handling of NUL
     my $msg = \($mess || $error);
     $$msg =~ tr/\0//d;
-    --$guard;
+    --$in_carp;
     $$msg;
 };
 
@@ -213,13 +215,13 @@ my $guard=0;
 
 *shortmess = sub {	# Short-circuit &longmess if called via multiple packages
     goto &longmess if $Verbose;
-    return "<DIED>\n" if $guard;
-    ++$guard;
+    return "DIED\n" if $in_carp;
+    ++$in_carp;
     my $error;
     eval { $error = join '', @_ };
     if ($@) {
 	$@ =~ s/\n$//;
-	$error = $@;
+	$error = "<$@>";
     }
     my ($prevpack) = caller(1);
     my $extra = $CarpLevel;
@@ -277,7 +279,7 @@ my $guard=0;
 	    # to be given NUL characters (which $msg may contain) so we
 	    # remove them first.
 	    (my $msg = "$error at $file line $line\n") =~ tr/\0//d;
-	    --$guard;
+	    --$in_carp;
 	    return $msg;
 	}
     }
@@ -290,7 +292,7 @@ my $guard=0;
     # to generate a full stack trace.  We use the magical form of 'goto'
     # so that this shortmess() function doesn't appear on the stack
     # to further confuse longmess() about it's calling package.
-    --$guard;
+    --$in_carp;
     goto &longmess;
 };
 
