@@ -1,5 +1,5 @@
 package Devel::Carp;
-$VERSION = '0.03';
+$VERSION = '0.04';
 
 # Avoid loading Carp if it wasn't already loaded.
 $INC{'Carp.pm'} = $INC{'Devel/Carp.pm'};
@@ -65,6 +65,7 @@ $MaxEvalLen = 0;	# How much eval '...text...' to show. 0 = all.
 $MaxArgLen = 64;        # How much of each argument to print. 0 = all.
 $MaxArgNums = 8;        # How many arguments to print. 0 = all.
 $Verbose = 0;		# If true then make shortmess call longmess instead
+$MaxRecursion = 2;
 
 require Exporter;
 @ISA = ('Exporter');
@@ -99,7 +100,10 @@ local $SIG{__WARN__} = sub {
 
 my $in_carp=0;
 *longmess = sub {
-    return "DIED\n" if $in_carp;
+    if ($in_carp >= $MaxRecursion) {
+	#--$in_carp; # ??
+	return "DIED\n"
+    }
     ++$in_carp;
     my $error;
     eval { $error = join '', @_ };
@@ -215,7 +219,10 @@ my $in_carp=0;
 
 *shortmess = sub {	# Short-circuit &longmess if called via multiple packages
     goto &longmess if $Verbose;
-    return "DIED\n" if $in_carp;
+    if ($in_carp >= $MaxRecursion) {
+	#--$in_carp; # ??
+	return "DIED\n"
+    }
     ++$in_carp;
     my $error;
     eval { $error = join '', @_ };
