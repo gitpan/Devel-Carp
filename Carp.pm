@@ -1,5 +1,5 @@
 package Devel::Carp;
-$VERSION = '0.02';
+$VERSION = '0.03';
 
 # Avoid loading Carp if it wasn't already loaded.
 $INC{'Carp.pm'} = $INC{'Devel/Carp.pm'};
@@ -73,7 +73,7 @@ require Exporter;
 @EXPORT_FAIL = qw(verbose);	# hook to enable verbose mode
 
 local $SIG{__WARN__} = sub {
-    # Carp was probably loaded already so we need to turn off
+    # Carp was probably loaded already so we need to silence
     # the "Subroutine %s redefined" warning.
     return if $_[0] =~ /redefined/;
     warn $_[0];
